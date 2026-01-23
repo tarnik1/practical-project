@@ -32,10 +32,10 @@ class GraphAutoencoder(torch.nn.Module):
     def __init__(self, num_nodes, input_dim, hidden_dim, embedding_dim):
         """
         Args:
-            num_nodes (int): Number of ROIs (e.g., 100 for Schaefer100).
+            num_nodes (int): Number of ROIs (100 for Schaefer100).
             input_dim (int): Dimension of node features (often equal to num_nodes).
             hidden_dim (int): Hidden dimension for GCN layers.
-            embedding_dim (int): Size of the final bottleneck vector (e.g., 128).
+            embedding_dim (int): Size of the final bottleneck vector (e.g., 128 here).
         """
         super(GraphAutoencoder, self).__init__()
         self.num_nodes = num_nodes
@@ -44,7 +44,7 @@ class GraphAutoencoder(torch.nn.Module):
         # ENCODER:
         # "composed of Graph Convolutional Layers, learns to integrate the network topology" 
         self.conv1 = GCNConv(input_dim, hidden_dim)
-        self.conv2 = GCNConv(hidden_dim, hidden_dim)
+        self.conv2 = GCNConv(hidden_dim, hidden_dim) # using 2 layers allows the model to see second-degree connections (neighbors of neighbors)
         
         # Projection layer before pooling to get exact embedding size
         self.lin_encode = nn.Linear(hidden_dim, embedding_dim)
@@ -54,14 +54,14 @@ class GraphAutoencoder(torch.nn.Module):
         # features of all 100 nodes into one dense vector that summarizes the entire brain's state.
 
         # DECODER:
-        # "decodes from the compressed graph embedding" to "minimize reconstruction error" 
+        # "decodes from the compressed graph embedding" to minimize reconstruction error 
         # Since we compressed the WHOLE graph to a single vector, we need an MLP 
         # to project it back up to N*N dimensions.
         self.decoder = nn.Sequential(
             nn.Linear(embedding_dim, hidden_dim * 2),
             nn.ReLU(),
             nn.Linear(hidden_dim * 2, num_nodes * num_nodes),
-            nn.Tanh() # FC matrices are correlations [-1, 1]
+            nn.Tanh()
         )
             # Tanh constrains the output values to the range [-1, 1], which aligns with the nature of
             # correlation matrices in brain connectivity data.
@@ -83,13 +83,14 @@ class GraphAutoencoder(torch.nn.Module):
         # 2. Project node features to embedding dimension
         x = self.lin_encode(x) # Shape: [Total_Nodes, embedding_dim]
 
-        # 3. Readout / Pooling
+        # 3. Readout/Pooling
         # Aggregates node features into one vector per graph in the batch
         if batch is None:
             # If no batch vector provided, assume all nodes belong to one graph
             batch = torch.zeros(x.size(0), dtype=torch.long, device=x.device)
             
         graph_level_vector = global_mean_pool(x, batch) # Shape: [Batch_Size, embedding_dim]
+        # what is my batch size here?
         
         return graph_level_vector
 

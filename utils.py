@@ -2,7 +2,7 @@
 # GOAL: Store helper functions and the main PyTorch Dataset class.
 
 # the "Data" object must contain 3 specific elements:
-# 1. x (node features): what does each (of the 100) brain regons look like?
+# 1. x (node features): what does each (of the 100) brain regions look like?
 # 2. edge_index (Topology): which brain regions are connected to which?
 # 3. edge_weight (Strength): how strong is the correlation (the actual values from the FC matrix)?
 
@@ -42,17 +42,14 @@ class FCDataset(Dataset):
     def __getitem__(self, idx):
         row = self.metadata_df.iloc[idx]
         
-        # Loading the .npy file
         matrix = np.load(row['npy_path']) # using the npy_path column from script 01 to locate and load the FC matrix
         
-        # Converting label
-        diag = str(row['diagnosis']).lower()
-        label = 1 if 'pd' in diag else 0
+        label = int(row['label'])
         
         # Converting FC matrix into PyTorch Geometric format
         num_nodes = matrix.shape[0] # should be 100
         
-        # Identitying matrix for node features (Noman et al.)
+        # Identitying matrix for node features (Noman et al.) # binary coding for identification of each node
         x = torch.eye(num_nodes, dtype=torch.float) # torch.eye() returns a 2-D tensor of size (num_nodes, num_nodes) with ones on the diagonal and zeros elsewhere.
         
         # Creating edge_index (every node connected to every node)
@@ -76,6 +73,6 @@ class FCDataset(Dataset):
 #    -   # ... import faiss
 #    -   # ... read and return the index
 
-def load_faiss_index(path): # come back and change path later
+def load_faiss_index(path):
     import faiss
     return faiss.read_index(path)

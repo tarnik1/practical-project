@@ -30,7 +30,7 @@ print(f"Total Knowledge Base samples: {len(df_kb)}")
 #    - kb_dataloader = DataLoader(kb_dataset, batch_size=32, shuffle=True)
 
 kb_dataset = FCDataset(df_kb)
-kb_dataloader = DataLoader(kb_dataset, batch_size=32, shuffle=True)
+kb_dataloader = DataLoader(kb_dataset, batch_size=32, shuffle=True) # 32 subjects/graphs per batch
 
 # 5. Initialize the GAE model, optimizer, and loss function
 #    - model = GraphAutoencoder(...)
@@ -38,7 +38,7 @@ kb_dataloader = DataLoader(kb_dataset, batch_size=32, shuffle=True)
 #    - loss_fn = torch.nn.MSELoss()  # (Reconstruction loss)
 
 model = GraphAutoencoder(num_nodes=100, input_dim=100, hidden_dim=64, embedding_dim=128)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001) # learning rate
 loss_fn = torch.nn.MSELoss()
 
 # 6. Start the training loop
@@ -73,12 +73,12 @@ for epoch in range(num_epochs):
 
         loss.backward()
         optimizer.step()
-        total_loss += loss.item()
+        total_loss += loss.item() # this is the sum of every mistake the model makes during each entire epoch.
     
     if (epoch + 1) % 10 == 0:
         print(f"Epoch {epoch+1:03d} | Loss: {total_loss/len(kb_dataloader):.6f}")
 
-#consider printing the loss for every epoch
+# consider printing the loss for every epoch
 
 # 7. Save the trained *encoder* part of the GAE
 #    - (e.g., torch.save(model.encoder.state_dict(), 'gae_encoder.pth'))

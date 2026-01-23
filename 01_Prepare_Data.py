@@ -132,7 +132,7 @@ for metadata_file in metadata_files:
                 "npy_path": npy_save_path
             })
 
-        except Exception as e:
+        except Exception as e: # soft broad error handling
             print(f"Error processing subject {sid}: {e}")
             continue
 
