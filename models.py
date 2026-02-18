@@ -136,21 +136,21 @@ class AttentionMechanism(nn.Module):
         # because we are comparing the v_query and V_retrieved directly.
         pass
     
-    # DISCUSSION:
-
+    # DISCUSSION: alternatively, we could use learnable nn.Linear layers to compute attention scores.
+    # allowing the model to learn a more complex similarity function.
+    
     def forward(self, v_query, V_retrieved):
         """
         v_query: (Batch, 128) 
         V_retrieved: (Batch, k, 128) - e.g., (Batch, 5, 128)
         """
         # STEP 1: Calculate Relevance Scores (Dot-Product)
-        # We need to make v_query (Batch, 128, 1) to multiply with V_retrieved (Batch, 5, 128)
         # This calculates: score_i = v_query · v_i for each of the k neighbors
         query = v_query.unsqueeze(2) 
         scores = torch.bmm(V_retrieved, query) # Result shape: (Batch, k, 1)
+        # bmm => batch matrix-matrix product
         
         # STEP 2: Normalize Scores to Weights (Softmax)
-        # This turns raw scores into probabilities (e.g., [0.05, 0.90, 0.05])
         weights = F.softmax(scores, dim=1) # Result shape: (Batch, k, 1)
         
         # STEP 3: Create the Context Vector (Weighted Average)
@@ -158,7 +158,7 @@ class AttentionMechanism(nn.Module):
         # weights: (Batch, k, 1), V_retrieved: (Batch, k, 128)
         v_context = torch.sum(weights * V_retrieved, dim=1) # Result shape: (Batch, 128)
         
-        return v_context, weights # Returning weights for future explainability!
+        return v_context, weights # Returning weights for future explainability.
 
 # 4. Define the full Retrieval-Augmented Classifier (RAC)
 #    - class RAC_Model(torch.nn.Module):

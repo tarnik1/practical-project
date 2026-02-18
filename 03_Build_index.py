@@ -53,7 +53,7 @@ model.encoder.eval() # this "freezes" that knowledge while building the index
 print("encoding Knowledge Base into vector space...")
 all_embeddings = []
 
-with torch.no_grad():
+with torch.no_grad(): # disables gradient calculations to save memory and computation
     for data, label in kb_dataloader:
         v_embedding = model.encoder(data.x, data.edge_index, data.edge_weight, data.batch) # without passing data.batch, the encoder wouldn't know where one brain ends and the next begins.
         all_embeddings.append(v_embedding.cpu().numpy())
@@ -77,5 +77,7 @@ index.add(all_embeddings)
 
 faiss.write_index(index, index_save_path)
 df_kb.to_csv(os.path.join(output_dir, "kb_metadata_indexed.csv"), index=False)
+# we save this to know which row in the KB corresponds to which embedding in FAISS.
 
+print(f"Knowledge Base Index saved with {index.ntotal} subjects.")
 print(f"Index successfully saved to: {output_dir}")
