@@ -178,30 +178,31 @@ class RAC_Model(nn.Module):
         self.gae_encoder = gae_encoder
         self.attention_model = attention_model
         
-        # Final classification head: Input is 256 (128 original + 128 context)
+        # final classification head: Input is 256 => v_query (128) & v_context (128)
         self.classification_head = nn.Sequential(
             nn.Linear(embedding_dim * 2, 64),
             nn.ReLU(),
             nn.Dropout(0.3),
+            # during training, Droput randomly turns off 30% of the neurons in that layer.
+            # which prevents over-fitting: if the model relies too heavily on one specific
+            # neuron to identify PD, it will fail on new patients. Dropout forces the model
+            # to learn multiple ways to find the answer.
             nn.Linear(64, 1),
             nn.Sigmoid()
         )
         
     def forward(self, x, edge_index, edge_weight, batch, V_retrieved):
-        # STEP 1 (from Plan): Query Encoding
         v_query = self.gae_encoder(x, edge_index, edge_weight, batch)
-        
-        # STEP 2 & 3 (from Plan): Knowledge Retrieval & Contextual Augmentation
-        # (Note: V_retrieved is passed from the script that queries FAISS)
+        # V_retrieved is passed from the script that queries FAISS
         v_context, attn_weights = self.attention_model(v_query, V_retrieved)
-        
-        # STEP 4 (from Plan): Final Augmentation (Concatenation)
         v_augmented = torch.cat((v_query, v_context), dim=1) # Result: (Batch, 256)
-        
-        # Final Prediction
         prediction = self.classification_head(v_augmented)
         
         return prediction, attn_weights
+
+# we could either use the attention weights based strictly on the L2 distance (which means
+# no new training would be required.) or we could fine-tune the attention/classifier layers using a small
+# portion of the data to learn how to weight neighbors perfectly. (which is what we do later on.)
 
 # 5. Define the Baseline GNN Classifier
 #    - class Baseline_GNN(torch.nn.Module):
