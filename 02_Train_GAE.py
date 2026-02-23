@@ -62,14 +62,14 @@ print("Starting GAE Training...")
 for epoch in range(num_epochs):
     model.train()
     total_loss = 0
-    for data, label in kb_dataloader:
+    for data in kb_dataloader:
         optimizer.zero_grad()
         
         # Forward pass: Matrix -> Embedding -> Reconstruction
-        reconstructed_matrix = model(data)
+        reconstructed_matrix = model(data.x, data.edge_index, data.edge_weight, data.batch)
         
         # Calculate reconstruction error against original matrix
-        loss = loss_fn(reconstructed_matrix, data.y)
+        loss = loss_fn(reconstructed_matrix, data.fc_matrix)
 
         loss.backward()
         optimizer.step()
@@ -84,6 +84,6 @@ for epoch in range(num_epochs):
 #    - (e.g., torch.save(model.encoder.state_dict(), 'gae_encoder.pth'))
 
 encoder_path = os.path.join(output_dir, 'gae_encoder.pth')
-torch.save(model.encoder.state_dict(), encoder_path)
+torch.save(model.state_dict(), encoder_path)
 
 print(f"GAE Training Complete. Encoder weights saved to: {encoder_path}")

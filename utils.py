@@ -63,10 +63,11 @@ class FCDataset(Dataset):
         
         # Creating the Data object
         data_obj = Data(x=x, edge_index=edge_index, edge_weight=edge_weight)
-        data_obj.y = torch.tensor(matrix, dtype=torch.float) # Target for reconstruction =>
+        data_obj.y = torch.tensor([label], dtype=torch.float)
+        data_obj.fc_matrix = torch.tensor(matrix, dtype=torch.float) # Target for reconstruction =>
         # storing the original FC matrix here; the "ground Truth" that the GAE will try to reconstruct during training.
         
-        return data_obj, label
+        return data_obj
 
 # 3. Define a helper function to load the FAISS index
 #    - def load_faiss_index(path):
