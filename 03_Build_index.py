@@ -39,8 +39,8 @@ kb_dataloader = DataLoader(kb_dataset, batch_size=32, shuffle=False)
 #    - encoder.eval() # Set to evaluation mode
 
 model = GraphAutoencoder(num_nodes=100, input_dim=100, hidden_dim=64, embedding_dim=128)
-model.encoder.load_state_dict(torch.load(encoder_weights)) # this gives the model its knowledge (weights)
-model.encoder.eval() # this "freezes" that knowledge while building the index
+model.load_state_dict(torch.load(encoder_weights)) # this gives the model its knowledge (weights)
+model.eval() # this "freezes" that knowledge while building the index
 
 # 5. Loop through the dataloader and collect all embeddings
 #    - all_embeddings = []
@@ -54,8 +54,8 @@ print("encoding Knowledge Base into vector space...")
 all_embeddings = []
 
 with torch.no_grad(): # disables gradient calculations to save memory and computation
-    for data, label in kb_dataloader:
-        v_embedding = model.encoder(data.x, data.edge_index, data.edge_weight, data.batch) # without passing data.batch, the encoder wouldn't know where one brain ends and the next begins.
+    for data in kb_dataloader:
+        v_embedding = model.encode(data.x, data.edge_index, data.edge_weight, data.batch) # without passing data.batch, the encoder wouldn't know where one brain ends and the next begins.
         all_embeddings.append(v_embedding.cpu().numpy())
 
 all_embeddings = np.concatenate(all_embeddings, axis=0).astype('float32') # FAISS needs float32
@@ -76,8 +76,10 @@ index.add(all_embeddings)
 #    - (e.g., faiss.write_index(index, 'knowledge_base.index'))
 
 faiss.write_index(index, index_save_path)
+np.save(os.path.join(output_dir, 'kb_embeddings.npy'), all_embeddings)
 df_kb.to_csv(os.path.join(output_dir, "kb_metadata_indexed.csv"), index=False)
 # we save this to know which row in the KB corresponds to which embedding in FAISS.
 
 print(f"Knowledge Base Index saved with {index.ntotal} subjects.")
+print(f"Embeddings saved to: kb_embeddings.npy")
 print(f"Index successfully saved to: {output_dir}")

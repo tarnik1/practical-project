@@ -105,7 +105,7 @@ for epoch in range(num_epochs):
             v_query = gae_encoder.encode(data.x, data.edge_index, data.edge_weight, data.batch)
         
         v_query_np = v_query.cpu().numpy().astype('float32')
-        distances, neighbor_indices = index.search(v_query_np, K) # do I actually need the distances?
+        _, neighbor_indices = index.search(v_query_np, K) # do I actually need the distances?
         
         # neighbor_indices is (Batch, K), we use it to slice our .npy array
         v_retrieved = torch.from_numpy(kb_embeddings[neighbor_indices]).to(v_query.device)
@@ -128,7 +128,7 @@ for epoch in range(num_epochs):
     with torch.no_grad(): # (No learning allowed)
         for val_data in val_loader:
             
-            val_query = gae_encoder(val_data.x, val_data.edge_index, val_data.edge_weight, val_data.batch)
+            val_query = gae_encoder.encode(val_data.x, val_data.edge_index, val_data.edge_weight, val_data.batch)
             
             val_query_np = val_query.cpu().numpy().astype('float32')
             _, val_neighbor_indices = index.search(val_query_np, K)

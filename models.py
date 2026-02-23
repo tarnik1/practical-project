@@ -192,7 +192,7 @@ class RAC_Model(nn.Module):
         )
         
     def forward(self, x, edge_index, edge_weight, batch, V_retrieved):
-        v_query = self.gae_encoder(x, edge_index, edge_weight, batch)
+        v_query = self.gae_encoder.encode(x, edge_index, edge_weight, batch)
         # V_retrieved is passed from the script that queries FAISS
         v_context, attn_weights = self.attention_model(v_query, V_retrieved)
         v_augmented = torch.cat((v_query, v_context), dim=1) # Result: (Batch, 256)
@@ -233,7 +233,7 @@ class Baseline_GNN(nn.Module):
         
     def forward(self, x, edge_index, edge_weight, batch):
         # 1. Generate embedding from the target brain (No retrieval step!)
-        v_embedding = self.gae_encoder(x, edge_index, edge_weight, batch)
+        v_embedding = self.gae_encoder.encode(x, edge_index, edge_weight, batch)
         
         # 2. Make prediction based ONLY on this subject's data
         prediction = self.classification_head(v_embedding)
