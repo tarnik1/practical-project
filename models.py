@@ -217,11 +217,10 @@ class RAC_Model(nn.Module):
 class Baseline_GNN(nn.Module):
     def __init__(self, gae_encoder, embedding_dim):
         super(Baseline_GNN, self).__init__()
-        # Store the pre-trained encoder (same one used in RAC)
+        # Store the encoder (no weights, fresh start)
         self.gae_encoder = gae_encoder
         
-        # Define a classification head
-        # NOTE: This takes embedding_dim (128) as input, 
+        # NOTE: This classification head takes embedding_dim (128) as input, 
         # whereas RAC took embedding_dim * 2 (256).
         self.classification_head = nn.Sequential(
             nn.Linear(embedding_dim, 64),
@@ -232,10 +231,8 @@ class Baseline_GNN(nn.Module):
         )
         
     def forward(self, x, edge_index, edge_weight, batch):
-        # 1. Generate embedding from the target brain (No retrieval step!)
         v_embedding = self.gae_encoder.encode(x, edge_index, edge_weight, batch)
         
-        # 2. Make prediction based ONLY on this subject's data
         prediction = self.classification_head(v_embedding)
         
         return prediction

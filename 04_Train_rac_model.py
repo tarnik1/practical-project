@@ -22,7 +22,6 @@ encoder_weights = os.path.join(output_dir, 'gae_encoder.pth')
 index_path = os.path.join(output_dir, 'knowledge_base.index') # spatial organization of the embeddings
 kb_embeddings_path = os.path.join(output_dir, 'kb_embeddings.npy')
 kb_metadata_path = os.path.join(output_dir, 'kb_metadata_indexed.csv')
-# check variable/file names?
 
 # 2. Load the metadata and filter for the *target* dataset
 #    - (e.g., df_target = df[df['dataset_source'] == 'TaoWu'])

@@ -1,4 +1,4 @@
-#Prepare Data# SCRIPT 06: EVALUATE MODELS
+#Prepare Data # SCRIPT 06: EVALUATE MODELS
 # GOAL: Compare the RAC model vs. the Baseline on the test set.
 
 # 1. Import libraries
@@ -10,7 +10,7 @@ import torch
 import pandas as pd
 import numpy as np
 import faiss
-from torch.utils.data import DataLoader
+from torch_geometric.loader import DataLoader
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix, classification_report
 from models import GraphAutoencoder, AttentionMechanism, RAC_Model, Baseline_GNN
@@ -32,12 +32,9 @@ baseline_weights = os.path.join(output_dir, 'baseline_model.pth')
 #    - test_dataset = FCDataset(df_test)
 #    - test_dataloader = DataLoader(test_dataset, ...)
 
-# 2. PREPARE TEST DATA
 df = pd.read_csv(master_csv)
 df_target = df[df['dataset_source'] == 'TaoWu'].reset_index(drop=True)
 
-# We use the same random_state=42. 
-# Script 04/05 used 80% for train/val. Now we use the 20% "Test" set.
 _, df_test = train_test_split(df_target, test_size=0.2, stratify=df_target['label'], random_state=42)
 test_loader = DataLoader(FCDataset(df_test), batch_size=1, shuffle=False) # Batch 1 for individual analysis
 
@@ -46,15 +43,13 @@ test_loader = DataLoader(FCDataset(df_test), batch_size=1, shuffle=False) # Batc
 #    - (Also need to load GAE encoder and FAISS index for its forward pass)
 #    - rac_model.eval()
 
-# 3. LOAD RAC MODEL
 index = faiss.read_index(index_path)
 kb_embeddings = np.load(kb_embeddings_path).astype('float32')
 
-# Initialize RAC structure
 base_gae = GraphAutoencoder(100, 100, 64, 128)
-base_gae.encoder.load_state_dict(torch.load(encoder_weights))
+base_gae.load_state_dict(torch.load(encoder_weights))
 attention = AttentionMechanism(embedding_dim=128)
-rac_model = RAC_Model(base_gae.encoder, attention, embedding_dim=128)
+rac_model = RAC_Model(gae_encoder=base_gae, attention_model=attention, embedding_dim=128)
 rac_model.load_state_dict(torch.load(rac_weights))
 rac_model.eval()
 
@@ -62,9 +57,8 @@ rac_model.eval()
 #    - (Initialize Baseline_GNN, load 'baseline_model.pth')
 #    - baseline_model.eval()
 
-# Note: Baseline used a 'fresh' encoder, so we load its specific weights
 fresh_gae = GraphAutoencoder(100, 100, 64, 128)
-baseline_model = Baseline_GNN(gae_encoder=fresh_gae.encoder, embedding_dim=128)
+baseline_model = Baseline_GNN(gae_encoder=fresh_gae, embedding_dim=128)
 baseline_model.load_state_dict(torch.load(baseline_weights))
 baseline_model.eval()
 
@@ -91,21 +85,19 @@ baseline_probs = []
 
 print("Starting Evaluation on TaoWu Test Set...")
 with torch.no_grad():
-    for data, label in test_loader:
-        # A. RAC Prediction (Retrieval Step)
-        v_query = rac_model.gae_encoder(data.x, data.edge_index, data.edge_weight, data.batch)
+    for data in test_loader:
+        
+        v_query = rac_model.gae_encoder.encode(data.x, data.edge_index, data.edge_weight, data.batch)
         distances, indices = index.search(v_query.cpu().numpy().astype('float32'), k=5)
         v_retrieved = torch.from_numpy(kb_embeddings[indices]).to(v_query.device)
         
-        r_pred, _ = rac_model(data.x, data.edge_index, data.edge_weight, data.batch, v_retrieved)
+        rac_pred, _ = rac_model(data.x, data.edge_index, data.edge_weight, data.batch, v_retrieved)
         
-        # B. Baseline Prediction
-        b_pred = baseline_model(data.x, data.edge_index, data.edge_weight, data.batch)
+        bl_pred = baseline_model(data.x, data.edge_index, data.edge_weight, data.batch)
         
-        # C. Store Results
-        all_labels.append(label.item())
-        rac_probs.append(r_pred.item())
-        baseline_probs.append(b_pred.item())
+        all_labels.append(data.y.item())
+        rac_probs.append(rac_pred.squeeze().item())
+        baseline_probs.append(bl_pred.squeeze().item())
 
 # 7. Post-process results (convert logits to probabilities/classes)
 #    - ...
@@ -130,15 +122,13 @@ def print_metrics(name, labels, probs, classes):
     print("Confusion Matrix:")
     print(confusion_matrix(labels, classes))
 
-print_metrics("RAC MODEL (Retrieval)", all_labels, rac_probs, rac_classes)
-print_metrics("BASELINE MODEL (Ab-Initio)", all_labels, baseline_probs, baseline_classes)
+print_metrics("RAC MODEL", all_labels, rac_probs, rac_classes)
+print_metrics("BASELINE MODEL", all_labels, baseline_probs, baseline_classes)
 
 # 9. (Optional) Save test results to a file
 
-# 9. SAVE TEST RESULTS TO FILE
 results_df = pd.DataFrame({
     'subject_id': df_test['subject_id'].values,
-    'original_master_index': df_test['original_master_index'].values,
     'ground_truth': all_labels,
     'rac_prob': rac_probs,
     'rac_predicted_class': rac_classes,
@@ -146,7 +136,7 @@ results_df = pd.DataFrame({
     'baseline_predicted_class': baseline_classes
 })
 
-# Identify "Success Stories": Cases where RAC was right and Baseline was wrong
+# Cases where RAC was right and Baseline was wrong
 results_df['rac_advantage'] = (results_df['rac_predicted_class'] == results_df['ground_truth']) & \
                              (results_df['baseline_predicted_class'] != results_df['ground_truth'])
 
