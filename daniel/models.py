@@ -28,20 +28,21 @@ from torch_geometric.nn import GCNConv, global_mean_pool
 #    -     # ... return reconstructed_matrix
 # models.py
 
-class GAEEncoder(torch.nn.Module):
+class GAEEncoder(nn.Module):
     def __init__(self, input_dim, hidden_dim, embedding_dim):
         super(GAEEncoder, self).__init__()
-        
         self.conv1 = GCNConv(input_dim, hidden_dim, normalize=False, add_self_loops=False)
         self.conv2 = GCNConv(hidden_dim, hidden_dim, normalize=False, add_self_loops=False)
         self.lin_encode = nn.Linear(hidden_dim, embedding_dim)
 
     def forward(self, x, edge_index, edge_weight, batch=None):
+        """Encoder using absolute edge weights for stability"""
         edge_weight = torch.abs(edge_weight)
-
+        
         x = self.conv1(x, edge_index, edge_weight=edge_weight)
         x = F.relu(x)
         x = F.dropout(x, p=0.3, training=self.training)
+        
         x = self.conv2(x, edge_index, edge_weight=edge_weight)
         x = F.relu(x)
         x = F.dropout(x, p=0.3, training=self.training)
@@ -50,31 +51,25 @@ class GAEEncoder(torch.nn.Module):
 
         if batch is None:
             batch = torch.zeros(x.size(0), dtype=torch.long, device=x.device)
-
+            
         graph_level_vector = global_mean_pool(x, batch)
         return graph_level_vector
 
 class GraphAutoencoder(torch.nn.Module):
     def __init__(self, num_nodes, input_dim, hidden_dim, embedding_dim):
-        """
-        Args:
-            num_nodes (int): Number of ROIs (100 for Schaefer100).
-            input_dim (int): Dimension of node features (often equal to num_nodes).
-            hidden_dim (int): Hidden dimension for GCN layers.
-            embedding_dim (int): Size of the final bottleneck vector (e.g., 128 here).
-        """
         super(GraphAutoencoder, self).__init__()
         self.num_nodes = num_nodes
         self.embedding_dim = embedding_dim
 
+        # ENCODER
         self.encoder = GAEEncoder(input_dim, hidden_dim, embedding_dim)
 
+        # DECODER
         self.decoder = nn.Sequential(
             nn.Linear(embedding_dim, hidden_dim * 2),
             nn.ReLU(),
             nn.Dropout(0.3),
-            nn.Linear(hidden_dim * 2, num_nodes * num_nodes),
-            nn.Tanh()
+            nn.Linear(hidden_dim * 2, num_nodes * num_nodes)
         )
 
     def decode(self, graph_level_vector):
@@ -104,22 +99,20 @@ class AttentionMechanism(nn.Module):
         # In this 'Pure Dot-Product' version, we don't need linear layers here
         # because we are comparing the v_query and V_retrieved directly.
         pass
-    
-    # DISCUSSION: alternatively, we could use learnable nn.Linear layers to compute attention scores.
-    # allowing the model to learn a more complex similarity function.
-    
+
     def forward(self, v_query, V_retrieved):
         """
         v_query: (Batch, 128) 
         V_retrieved: (Batch, k, 128) - e.g., (Batch, 5, 128)
         """
         # STEP 1: Calculate Relevance Scores (Dot-Product)
+        # We need to make v_query (Batch, 128, 1) to multiply with V_retrieved (Batch, 5, 128)
         # This calculates: score_i = v_query · v_i for each of the k neighbors
         query = v_query.unsqueeze(2) 
         scores = torch.bmm(V_retrieved, query) # Result shape: (Batch, k, 1)
-        # bmm => batch matrix-matrix product
         
         # STEP 2: Normalize Scores to Weights (Softmax)
+        # This turns raw scores into probabilities (e.g., [0.05, 0.90, 0.05])
         weights = F.softmax(scores, dim=1) # Result shape: (Batch, k, 1)
         
         # STEP 3: Create the Context Vector (Weighted Average)
@@ -127,22 +120,8 @@ class AttentionMechanism(nn.Module):
         # weights: (Batch, k, 1), V_retrieved: (Batch, k, 128)
         v_context = torch.sum(weights * V_retrieved, dim=1) # Result shape: (Batch, 128)
         
-        return v_context, weights # Returning weights for future explainability.
+        return v_context, weights # Returning weights for future explainability!
 
-class AttentionMechanismLinear(nn.Module):
-    def __init__(self, embedding_dim):
-        super(AttentionMechanismLinear, self).__init__()
-        self.query_proj = nn.Linear(embedding_dim, embedding_dim)
-        self.key_proj = nn.Linear(embedding_dim, embedding_dim)
-
-    def forward(self, v_query, V_retrieved):
-        q = self.query_proj(v_query).unsqueeze(2)       # (Batch, 128, 1)
-        k = self.key_proj(V_retrieved)                   # (Batch, k, 128)
-        scores = torch.bmm(k, q) / (128 ** 0.5)
-        weights = F.softmax(scores, dim=1)
-        v_context = torch.sum(weights * V_retrieved, dim=1)
-        return v_context, weights
-    
 # 4. Define the full Retrieval-Augmented Classifier (RAC)
 #    - class RAC_Model(torch.nn.Module):
 #    -   def __init__(self, gae_encoder, attention_model, embedding_dim):
@@ -161,31 +140,30 @@ class RAC_Model(nn.Module):
         self.gae_encoder = gae_encoder
         self.attention_model = attention_model
         
-        # final classification head: Input is 256 => v_query (128) & v_context (128)
+        # Final classification head: Input is 256 (128 original + 128 context)
         self.classification_head = nn.Sequential(
             nn.Linear(embedding_dim * 2, 64),
             nn.ReLU(),
             nn.Dropout(0.3),
-            # during training, Droput randomly turns off 30% of the neurons in that layer.
-            # which prevents over-fitting: if the model relies too heavily on one specific
-            # neuron to identify PD, it will fail on new patients. Dropout forces the model
-            # to learn multiple ways to find the answer.
             nn.Linear(64, 1),
             nn.Sigmoid()
         )
         
     def forward(self, x, edge_index, edge_weight, batch, V_retrieved):
+        # STEP 1 (from Plan): Query Encoding
         v_query = self.gae_encoder(x, edge_index, edge_weight, batch)
-        # V_retrieved is passed from the script that queries FAISS
+        
+        # STEP 2 & 3 (from Plan): Knowledge Retrieval & Contextual Augmentation
+        # (Note: V_retrieved is passed from the script that queries FAISS)
         v_context, attn_weights = self.attention_model(v_query, V_retrieved)
+        
+        # STEP 4 (from Plan): Final Augmentation (Concatenation)
         v_augmented = torch.cat((v_query, v_context), dim=1) # Result: (Batch, 256)
+        
+        # Final Prediction
         prediction = self.classification_head(v_augmented)
         
         return prediction, attn_weights
-
-# we could either use the attention weights based strictly on the L2 distance (which means
-# no new training would be required.) or we could fine-tune the attention/classifier layers using a small
-# portion of the data to learn how to weight neighbors perfectly. (which is what we do later on.)
 
 # 5. Define the Baseline GNN Classifier
 #    - class Baseline_GNN(torch.nn.Module):
@@ -200,10 +178,11 @@ class RAC_Model(nn.Module):
 class Baseline_GNN(nn.Module):
     def __init__(self, gae_encoder, embedding_dim):
         super(Baseline_GNN, self).__init__()
-        # Store the encoder (no weights, fresh start)
+        # Store the pre-trained encoder (same one used in RAC)
         self.gae_encoder = gae_encoder
         
-        # NOTE: This classification head takes embedding_dim (128) as input, 
+        # Define a classification head
+        # NOTE: This takes embedding_dim (128) as input, 
         # whereas RAC took embedding_dim * 2 (256).
         self.classification_head = nn.Sequential(
             nn.Linear(embedding_dim, 64),
@@ -214,8 +193,10 @@ class Baseline_GNN(nn.Module):
         )
         
     def forward(self, x, edge_index, edge_weight, batch):
+        # 1. Generate embedding from the target brain (No retrieval step!)
         v_embedding = self.gae_encoder(x, edge_index, edge_weight, batch)
         
+        # 2. Make prediction based ONLY on this subject's data
         prediction = self.classification_head(v_embedding)
         
         return prediction

@@ -53,10 +53,14 @@ for metadata_file in metadata_files:
 
     meta_df = pd.read_csv(metadata_file_path)
     id_col = "Subject"
-    label_col = "Group" # ppmi runs into problem here
-    #getting the dataset path for this metadata file
+    label_col = "Group"
+    # getting the dataset path for this metadata file
     dataset_path = dataset_map.get(metadata_file)
     print("using dataset folder:", dataset_path)
+
+    # excluding Prodromal/SWEDD to keep our database pure
+    meta_df = meta_df[~meta_df[label_col].astype(str).str.contains('Prodromal|SWEDD', case=False, na=False)]
+    
     subject_ids = meta_df[id_col].astype(str).drop_duplicates().tolist()
     print("found", len(subject_ids), "unique subjects in", metadata_file)
 
@@ -64,22 +68,23 @@ for metadata_file in metadata_files:
 #    - (e.g., using os.listdir or glob.glob)
 #    - Get the subject_id from the folder name.
 #    - Get the diagnosis (PD or control) from the folder/file name.
-    # looping throughsubject folders
+    
+    # looping through subject folders
     for sid in subject_ids:
-        subject_folder_pattern = f"sub-{sid}" # ppmi runs into problem here
+        subject_folder_pattern = f"sub-{sid}"
         subject_folder = os.path.join(dataset_path, subject_folder_pattern)
 
         if not os.path.isdir(subject_folder):
-           print("folder not found for subject:", sid)
-           continue 
-     
+            print("folder not found for subject:", sid)
+            continue
+            
 # 6. Find the target file
 #    - Search inside the subject's folder for the file that ends with
 #      TARGET_FILE_SUFFIX (and is a correlation_matrix, not timeseries).
 #    - (e.g., sub-control032057_schaefer100_correlation_matrix)
     
         search_pattern = os.path.join(subject_folder, f"*{targetfile_suffix}.mat")
-        matching_files = glob.glob(search_pattern)
+        matching_files = glob.glob(search_pattern, recursive=True)
 
         if len(matching_files) == 0:
            print("no correlation matrix found for:", sid)

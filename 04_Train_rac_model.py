@@ -42,13 +42,12 @@ val_loader = DataLoader(FCDataset(df_val), batch_size=16, shuffle=False)
 #    - gae_encoder = GraphAutoencoder(...).encoder
 #    - gae_encoder.load_state_dict(torch.load('gae_encoder.pth'))
 
-base_model = GraphAutoencoder(num_nodes=100, input_dim=100, hidden_dim=64, embedding_dim=128)
-base_model.load_state_dict(torch.load(encoder_weights), strict=False)
-gae_encoder = base_model
-gae_encoder.eval()
+model = GraphAutoencoder(num_nodes=100, input_dim=100, hidden_dim=64, embedding_dim=128)
+model.encoder.load_state_dict(torch.load(encoder_weights))
+model.encoder.eval()
 # while the gae eencoder has already been trained and therefore we keep its weights frozen (.eval()),
 # we still need to train the attention mechanism and the MLP.
-for param in gae_encoder.parameters():
+for param in model.encoder.parameters():
     param.requires_grad = False
 
 # 5. Load the FAISS index
@@ -57,7 +56,7 @@ for param in gae_encoder.parameters():
 
 index = faiss.read_index(index_path)
 kb_embeddings = np.load(kb_embeddings_path).astype('float32')
-K = 5
+K = 10
 
 # 6. Initialize the full RAC model
 #    - attention_model = AttentionMechanism(...)
@@ -66,10 +65,10 @@ K = 5
 #    - loss_fn = torch.nn.BCEWithLogitsLoss() # (For classification)
 
 attention_model = AttentionMechanism(embedding_dim=128)
-rac_model = RAC_Model(gae_encoder, attention_model, embedding_dim=128)
+rac_model = RAC_Model(model.encoder, attention_model, embedding_dim=128)
 
 optimizer = torch.optim.Adam(rac_model.parameters(), lr=0.001)
-# Using BCELoss because our RAC_Model ends with a Sigmoid
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3)
 loss_fn = torch.nn.BCELoss()
 # BCELoss penalizes a model when it guesses wrong in a yes/no (PD vs. HC) scenario.
 # stands for binary cross entropy
@@ -92,7 +91,9 @@ loss_fn = torch.nn.BCELoss()
 #    -     # ... 6. Backpropagate and update weights
 #    -   # ... Run a similar loop on the validation set to check performance
 
-num_epochs = 20
+num_epochs = 200
+all_val_accuracies = []
+
 for epoch in range(num_epochs):
     rac_model.train()
     total_loss = 0
@@ -101,7 +102,7 @@ for epoch in range(num_epochs):
         optimizer.zero_grad()
         
         with torch.no_grad():
-            v_query = gae_encoder.encode(data.x, data.edge_index, data.edge_weight, data.batch)
+            v_query = model.encoder(data.x, data.edge_index, data.edge_weight, data.batch)
         
         v_query_np = v_query.cpu().numpy().astype('float32')
         _, neighbor_indices = index.search(v_query_np, K) # do I actually need the distances?
@@ -112,9 +113,12 @@ for epoch in range(num_epochs):
         # Forward Pass # the underscore takes the place of the attention_weights
         predictions, _ = rac_model(data.x, data.edge_index, data.edge_weight, data.batch, v_retrieved)
         
-        loss = loss_fn(predictions.squeeze(), data.y.squeeze())
+        loss = loss_fn(predictions.squeeze(), data.y.float().squeeze())
         # BCELoss compares the model's prediction to the actual label and then calculates a penalty score.
         loss.backward()
+
+        torch.nn.utils.clip_grad_norm_(rac_model.parameters(), max_norm=1.0)
+
         optimizer.step()
         # PyTorch calculates which neurons in the Attention layer and MLP caused the error (backward), 
         # and the optimizer slightly turns the dials to do better next time (step).
@@ -123,11 +127,13 @@ for epoch in range(num_epochs):
     
     rac_model.eval()
     val_loss = 0
+    correct = 0
+    total = 0
     
     with torch.no_grad(): # (No learning allowed)
         for val_data in val_loader:
-            
-            val_query = gae_encoder.encode(val_data.x, val_data.edge_index, val_data.edge_weight, val_data.batch)
+
+            val_query = model.encoder(val_data.x, val_data.edge_index, val_data.edge_weight, val_data.batch)
             
             val_query_np = val_query.cpu().numpy().astype('float32')
             _, val_neighbor_indices = index.search(val_query_np, K)
@@ -135,14 +141,36 @@ for epoch in range(num_epochs):
             val_retrieved = torch.from_numpy(kb_embeddings[val_neighbor_indices]).to(val_query.device)
             
             val_predictions, _ = rac_model(val_data.x, val_data.edge_index, val_data.edge_weight, val_data.batch, val_retrieved)
-            
-            batch_loss = loss_fn(val_predictions.squeeze(), val_data.y.squeeze())
+
+            batch_loss = loss_fn(val_predictions.squeeze(), val_data.y.float().squeeze())
             val_loss += batch_loss.item()
+
+            predicted_labels = (val_predictions.squeeze() > 0.5).float()
+            true_labels = val_data.y.float().squeeze()
+
+            if true_labels.dim() == 0:
+                true_labels = true_labels.unsqueeze(0)
+                predicted_labels = predicted_labels.unsqueeze(0)
+
+            correct += (predicted_labels == true_labels).sum().item()
+            total += true_labels.size(0)
     
-    print(f"Epoch {epoch+1:02d}/{num_epochs} | Train Loss: {total_loss/len(train_loader):.4f} | Val Loss: {val_loss/len(val_loader):.4f}")
+    avg_val_loss = val_loss / len(val_loader)
+    val_accuracy = 100 * correct / total
+    
+    all_val_accuracies.append(val_accuracy)
+    
+    # Update learning rate based on validation loss
+    scheduler.step(avg_val_loss)
+    
+    if (epoch + 1) % 10 == 0:
+        print(f"Epoch {epoch+1:02d}/{num_epochs} | Train Loss: {total_loss/len(train_loader):.4f} | Val Loss: {avg_val_loss:.4f} | Val Acc: {val_accuracy:.2f}%")    
 
 # 8. Save the final trained RAC model
 #    - (e.g., torch.save(rac_model.state_dict(), 'rac_model.pth'))
 
 torch.save(rac_model.state_dict(), os.path.join(output_dir, 'rac_model.pth'))
 print("RAC Model Training Complete and Saved.")
+mean_val_acc = sum(all_val_accuracies) / len(all_val_accuracies)
+print(f"Mean Validation Accuracy (across all {num_epochs} epochs): {mean_val_acc:.2f}%")
+print(f"Final Epoch Validation Accuracy: {all_val_accuracies[-1]:.2f}%")

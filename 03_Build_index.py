@@ -39,8 +39,8 @@ kb_dataloader = DataLoader(kb_dataset, batch_size=32, shuffle=False)
 #    - encoder.eval() # Set to evaluation mode
 
 model = GraphAutoencoder(num_nodes=100, input_dim=100, hidden_dim=64, embedding_dim=128)
-model.load_state_dict(torch.load(encoder_weights)) # this gives the model its knowledge (weights)
-model.eval() # this "freezes" that knowledge while building the index
+model.encoder.load_state_dict(torch.load(encoder_weights))
+model.encoder.eval()
 
 # 5. Loop through the dataloader and collect all embeddings
 #    - all_embeddings = []
@@ -55,10 +55,11 @@ all_embeddings = []
 
 with torch.no_grad(): # disables gradient calculations to save memory and computation
     for data in kb_dataloader:
-        v_embedding = model.encode(data.x, data.edge_index, data.edge_weight, data.batch) # without passing data.batch, the encoder wouldn't know where one brain ends and the next begins.
-        all_embeddings.append(v_embedding.cpu().numpy())
+        
+        v_embedding = model.encoder(data.x, data.edge_index, data.edge_weight, data.batch) # without passing data.batch, the encoder wouldn't know where one brain ends and the next begins.
+        all_embeddings.append(v_embedding.cpu().numpy().astype('float32'))
 
-all_embeddings = np.concatenate(all_embeddings, axis=0).astype('float32') # FAISS needs float32
+all_embeddings = np.concatenate(all_embeddings, axis=0) # FAISS needs float32
 
 # 6. Create and populate the FAISS index
 #    - EMBEDDING_DIM = 128

@@ -38,7 +38,7 @@ kb_dataloader = DataLoader(kb_dataset, batch_size=32, shuffle=True) # 32 subject
 #    - loss_fn = torch.nn.MSELoss()  # (Reconstruction loss)
 
 model = GraphAutoencoder(num_nodes=100, input_dim=100, hidden_dim=64, embedding_dim=128)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001) # learning rate
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0001, weight_decay=1e-5) # learning rate
 loss_fn = torch.nn.MSELoss()
 
 # 6. Start the training loop
@@ -51,7 +51,7 @@ loss_fn = torch.nn.MSELoss()
 #    -     # ... 5. Update weights (optimizer.step())
 #    -   # ... Print epoch loss
 
-num_epochs = 50
+num_epochs = 100
 # an epoch is one complete pass of the training algorithm through the entire training dataset.
 # num_epochs = 50 means the model will see every graph in the knowledge base 50 times during this training.
 # in the first few epochs, the model usually just learns the basic shape of the brain.
@@ -64,26 +64,29 @@ for epoch in range(num_epochs):
     total_loss = 0
     for data in kb_dataloader:
         optimizer.zero_grad()
-        
+
         # Forward pass: Matrix -> Embedding -> Reconstruction
         reconstructed_matrix = model(data.x, data.edge_index, data.edge_weight, data.batch)
         
         # Calculate reconstruction error against original matrix
         loss = loss_fn(reconstructed_matrix, data.fc_matrix)
-
         loss.backward()
+
+        # to prevent gradients from exploding past a maximum value of 1.0
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        
         optimizer.step()
         total_loss += loss.item() # this is the sum of every mistake the model makes during each entire epoch.
     
     if (epoch + 1) % 10 == 0:
         print(f"Epoch {epoch+1:03d} | Loss: {total_loss/len(kb_dataloader):.6f}")
 
-# consider printing the loss for every epoch
+# consider printing the loss for every epoch: i did. it looks like it already learns most of it by epoch 15.
 
 # 7. Save the trained *encoder* part of the GAE
 #    - (e.g., torch.save(model.encoder.state_dict(), 'gae_encoder.pth'))
 
 encoder_path = os.path.join(output_dir, 'gae_encoder.pth')
-torch.save(model.state_dict(), encoder_path)
+torch.save(model.encoder.state_dict(), encoder_path)
 
 print(f"GAE Training Complete. Encoder weights saved to: {encoder_path}")

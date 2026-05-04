@@ -2,7 +2,7 @@
 # GOAL: Store helper functions and the main PyTorch Dataset class.
 
 # the "Data" object must contain 3 specific elements:
-# 1. x (node features): what does each (of the 100) brain regions look like?
+# 1. x (node features): what does each (of the 100) brain regons look like?
 # 2. edge_index (Topology): which brain regions are connected to which?
 # 3. edge_weight (Strength): how strong is the correlation (the actual values from the FC matrix)?
 
@@ -42,14 +42,18 @@ class FCDataset(Dataset):
     def __getitem__(self, idx):
         row = self.metadata_df.iloc[idx]
         
+        # Loading the .npy file
         matrix = np.load(row['npy_path']) # using the npy_path column from script 01 to locate and load the FC matrix
         
-        label = int(row['label'])
+        # Converting label
+        diag = str(row['diagnosis']).lower()
+        # Label as 1 for PD, SWEDD, Prodromal; 0 for Control
+        label = 1 if any(keyword in diag for keyword in ['pd', 'swedd', 'prodromal']) else 0
         
         # Converting FC matrix into PyTorch Geometric format
         num_nodes = matrix.shape[0] # should be 100
         
-        # Identitying matrix for node features (Noman et al.) # binary coding for identification of each node
+        # Identitying matrix for node features (Noman et al.)
         x = torch.eye(num_nodes, dtype=torch.float) # torch.eye() returns a 2-D tensor of size (num_nodes, num_nodes) with ones on the diagonal and zeros elsewhere.
         
         # Creating edge_index (every node connected to every node)
@@ -63,19 +67,16 @@ class FCDataset(Dataset):
         
         # Creating the Data object
         data_obj = Data(x=x, edge_index=edge_index, edge_weight=edge_weight)
-        data_obj.y = torch.tensor([label], dtype=torch.float)
-        # Make fc_matrix a graph-level tensor with a leading batch dim (1, N, N)
-        # so that PyG's Batch will concatenate them into (batch, N, N).
-        data_obj.fc_matrix = torch.tensor(matrix, dtype=torch.float).unsqueeze(0) # Target for reconstruction =>
+        data_obj.y = torch.tensor(matrix, dtype=torch.float) # Target for reconstruction =>
         # storing the original FC matrix here; the "ground Truth" that the GAE will try to reconstruct during training.
         
-        return data_obj
+        return data_obj, label
 
 # 3. Define a helper function to load the FAISS index
 #    - def load_faiss_index(path):
 #    -   # ... import faiss
 #    -   # ... read and return the index
 
-def load_faiss_index(path):
+def load_faiss_index(path): # come back and change path later
     import faiss
     return faiss.read_index(path)
