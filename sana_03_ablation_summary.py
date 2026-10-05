@@ -34,7 +34,7 @@ from sklearn.metrics import (
 # 1. Paths
 # ------------------------------------------------------------
 
-output_dir = r'C:\Users\nikna\Documents\pp_datasets\processed_data_1'
+output_dir = r'C:\Users\imam\Desktop\Tara Project\processed_data_1'
 
 results_dir = os.path.join(
     output_dir,

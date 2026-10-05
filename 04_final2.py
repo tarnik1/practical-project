@@ -11,7 +11,7 @@ from sklearn.model_selection import StratifiedKFold
 from models import GraphAutoencoder, AttentionMechanismLinear, RAC_Model
 from utils import FCDataset
 
-output_dir = r'C:\Users\nikna\Documents\pp_datasets\processed_data_1'
+output_dir = r'C:\Users\imam\Desktop\Tara Project\processed_data_1'
 master_csv = os.path.join(output_dir, "master_metadata.csv")
 encoder_weights = os.path.join(output_dir, 'gae_encoder.pth')
 index_path = os.path.join(output_dir, 'knowledge_base.index')
@@ -19,6 +19,12 @@ kb_embeddings_path = os.path.join(output_dir, 'kb_embeddings.npy')
 kb_metadata_path = os.path.join(output_dir, 'kb_metadata_indexed.csv')
 
 df = pd.read_csv(master_csv)
+df["npy_path"] = df["npy_path"].apply(
+    lambda x: os.path.join(
+        output_dir,
+        os.path.basename(x)
+    )
+)
 df_target = df[df['dataset_source'] == 'TaoWu'].reset_index(drop=True)
 
 # Load the pre-trained GAE encoder once (it stays frozen)

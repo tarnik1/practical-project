@@ -52,7 +52,7 @@ if torch.cuda.is_available():
 # 2. Paths
 # ------------------------------------------------------------
 
-output_dir = r'C:\Users\nikna\Documents\pp_datasets\processed_data_1'
+output_dir = r'C:\Users\imam\Desktop\Tara Project\processed_data_1'
 
 master_csv = os.path.join(
     output_dir,
@@ -103,6 +103,14 @@ print("Using device:", device)
 # ------------------------------------------------------------
 
 df = pd.read_csv(master_csv)
+
+# Fix npy paths from Tara's computer to my local computer
+df["npy_path"] = df["npy_path"].apply(
+    lambda x: os.path.join(
+        output_dir,
+        os.path.basename(x)
+    )
+)
 
 df_target = (
     df[df["dataset_source"] == "TaoWu"]

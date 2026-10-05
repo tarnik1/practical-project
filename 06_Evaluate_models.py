@@ -16,7 +16,7 @@ from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix, cla
 from models import GraphAutoencoder, AttentionMechanism, AttentionMechanismLinear, RAC_Model, Baseline_GNN
 from utils import FCDataset
 
-output_dir = r'C:\Users\nikna\Documents\pp_datasets\processed_data_1'
+output_dir = r'C:\Users\imam\Desktop\Tara Project\processed_data_1'
 master_csv = os.path.join(output_dir, "master_metadata.csv")
 kb_embeddings_path = os.path.join(output_dir, 'kb_embeddings.npy')
 index_path = os.path.join(output_dir, 'knowledge_base.index')
@@ -34,6 +34,12 @@ baseline_weights = os.path.join(output_dir, 'baseline_model.pth')
 #    - test_dataloader = DataLoader(test_dataset, ...)
 
 df = pd.read_csv(master_csv)
+df["npy_path"] = df["npy_path"].apply(
+    lambda x: os.path.join(
+        output_dir,
+        os.path.basename(x)
+    )
+)
 df_target = df[df['dataset_source'] == 'TaoWu'].reset_index(drop=True)
 
 _, df_test = train_test_split(df_target, test_size=0.2, stratify=df_target['label'], random_state=42)

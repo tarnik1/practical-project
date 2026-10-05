@@ -98,6 +98,13 @@ print("Using device:", device)
 # ------------------------------------------------------------
 
 df = pd.read_csv(master_csv)
+# Fix npy paths from Tara's computer to my local computer
+df["npy_path"] = df["npy_path"].apply(
+    lambda x: os.path.join(
+        output_dir,
+        os.path.basename(x)
+    )
+)
 
 df_target = (
     df[df["dataset_source"] == "TaoWu"]
