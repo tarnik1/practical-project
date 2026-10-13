@@ -45,7 +45,7 @@ val_loader = DataLoader(FCDataset(df_val), batch_size=16, shuffle=False)
 model = GraphAutoencoder(num_nodes=100, input_dim=100, hidden_dim=64, embedding_dim=128)
 model.encoder.load_state_dict(torch.load(encoder_weights))
 model.encoder.eval()
-# while the gae eencoder has already been trained and therefore we keep its weights frozen (.eval()),
+# while the gae encoder has already been trained and therefore we keep its weights frozen (.eval()),
 # we still need to train the attention mechanism and the MLP.
 for param in model.encoder.parameters():
     param.requires_grad = False

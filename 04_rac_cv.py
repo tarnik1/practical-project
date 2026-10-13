@@ -1,5 +1,6 @@
 # SCRIPT 04: TRAIN THE RETRIEVAL-AUGMENTED CLASSIFIER
 # GOAL: Train the full RAC model on the TaoWu dataset with Leave-One-Out Cross Validation.
+# I don't care about this one
 
 import os
 import torch

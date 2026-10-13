@@ -18,7 +18,7 @@ index_path = os.path.join(output_dir, 'knowledge_base.index') # spatial organiza
 kb_embeddings_path = os.path.join(output_dir, 'kb_embeddings.npy')
 kb_metadata_path = os.path.join(output_dir, 'kb_metadata_indexed.csv')
 
-# 2. Load the metadata and filter for the *target* dataset>
+# 2. Load the metadata and filter for the *target* dataset
 df = pd.read_csv(master_csv)
 df_target = df[df['dataset_source'] == 'TaoWu'].reset_index(drop=True)
 
@@ -63,7 +63,7 @@ for fold, (train_idx, val_idx) in enumerate(skf.split(df_target, df_target['labe
     attention_model = AttentionMechanism(embedding_dim=128)
     rac_model = RAC_Model(model.encoder, attention_model, embedding_dim=128)
 
-    optimizer = torch.optim.Adam(rac_model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(rac_model.parameters(), lr=0.0001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3)
     
     num_epochs = 200
@@ -71,6 +71,7 @@ for fold, (train_idx, val_idx) in enumerate(skf.split(df_target, df_target['labe
 
     for epoch in range(num_epochs):
         rac_model.train()
+        rac_model.gae_encoder.eval()
         total_loss = 0
         
         for data in train_loader:
