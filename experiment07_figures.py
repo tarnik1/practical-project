@@ -128,48 +128,24 @@ for column in required_columns:
 # ============================================================
 
 label_map = {
+    "E0 - Ab-initio": "M0",
+    "E1 - Pretrained only": "M1",
 
-    "E0 - Ab-initio":
-        "Ab-initio",
+    "E2 - Retrieval mean (K=5)": "M2\nK=5",
+    "E2 - Retrieval mean (K=10)": "M2\nK=10",
+    "E2 - Retrieval mean (K=15)": "M2\nK=15",
 
-    "E1 - Pretrained only":
-        "Pretrained\nonly",
+    "E3 - RAC v1 (K=5)": "M3\nK=5",
+    "E3 - RAC v1 (K=10)": "M3\nK=10",
+    "E3 - RAC v1 (K=15)": "M3\nK=15",
 
-    "E2 - Retrieval mean (K=5)":
-        "Retrieval mean\nK=5",
+    "E4 - RAC v2 frozen (K=5)": "M4\nK=5",
+    "E4 - RAC v2 frozen (K=10)": "M4\nK=10",
+    "E4 - RAC v2 frozen (K=15)": "M4\nK=15",
 
-    "E2 - Retrieval mean (K=10)":
-        "Retrieval mean\nK=10",
-
-    "E2 - Retrieval mean (K=15)":
-        "Retrieval mean\nK=15",
-
-    "E3 - RAC v1 (K=5)":
-        "RAC v1\nK=5",
-
-    "E3 - RAC v1 (K=10)":
-        "RAC v1\nK=10",
-
-    "E3 - RAC v1 (K=15)":
-        "RAC v1\nK=15",
-
-    "E4 - RAC v2 frozen (K=5)":
-        "RAC v2 frozen\nK=5",
-
-    "E4 - RAC v2 frozen (K=10)":
-        "RAC v2 frozen\nK=10",
-
-    "E4 - RAC v2 frozen (K=15)":
-        "RAC v2 frozen\nK=15",
-
-    "E5 - RAC v2 fine-tuned (K=5)":
-        "RAC v2 fine-tuned\nK=5",
-
-    "E5 - RAC v2 fine-tuned (K=10)":
-        "RAC v2 fine-tuned\nK=10",
-
-    "E5 - RAC v2 fine-tuned (K=15)":
-        "RAC v2 fine-tuned\nK=15",
+    "E5 - RAC v2 fine-tuned (K=5)": "M5\nK=5",
+    "E5 - RAC v2 fine-tuned (K=10)": "M5\nK=10",
+    "E5 - RAC v2 fine-tuned (K=15)": "M5\nK=15",
 }
 
 
@@ -1113,7 +1089,12 @@ family_order = [
 
     "RAC v2 fine-tuned"
 ]
-
+family_labels = {
+    "Retrieval mean": "M2 — Mean retrieval",
+    "RAC v1": "M3 — Dot attention",
+    "RAC v2 frozen": "M4 — Learned attention",
+    "RAC v2 fine-tuned": "M5 — Partial fine-tuning",
+}
 
 for family in family_order:
 
@@ -1150,7 +1131,7 @@ for family in family_order:
 
         linewidth=1.8,
 
-        label=family
+        label=family_labels[family]
     )
 
 
@@ -1331,7 +1312,7 @@ for family in family_order:
 
         linewidth=1.5,
 
-        label=family
+        label=family_labels[family]
     )
 
 
@@ -1546,3 +1527,147 @@ print(
 print(
     "Figure6_combined_publication_figure.pdf"
 )
+# ============================================================
+# FIGURE 7: MAIN ISBI MODEL COMPARISON (M0–M5)
+# ============================================================
+from matplotlib.colors import to_rgba
+from matplotlib.lines import Line2D
+
+# Color palette for M0-M5
+model_colors = [
+    "#4E79A7",  # blue
+    "#59A14F",  # green
+    "#F28E2B",  # orange
+    "#B07AA1",  # purple
+    "#E15759",  # red/rose
+    "#76B7B2",  # cyan-teal
+]
+main_conditions = [
+    "E0 - Ab-initio",
+    "E1 - Pretrained only",
+    "E2 - Retrieval mean (K=10)",
+    "E3 - RAC v1 (K=10)",
+    "E4 - RAC v2 frozen (K=10)",
+    "E5 - RAC v2 fine-tuned (K=10)",
+]
+
+main_labels = ["M0", "M1", "M2", "M3", "M4", "M5"]
+
+fig, ax = plt.subplots(figsize=(7.2, 3.8))
+
+rng = np.random.default_rng(42)
+
+for i, experiment in enumerate(main_conditions):
+    values = df.loc[
+        df["experiment"] == experiment,
+        "accuracy_percent"
+    ].dropna().to_numpy()
+
+    if len(values) == 0:
+        raise ValueError(f"No fold-level results for {experiment}")
+
+    position = i + 1
+    color = model_colors[i]
+
+    # Boxplot
+    ax.boxplot(
+        values,
+        positions=[position],
+        widths=0.42,
+        patch_artist=True,
+        showfliers=False,
+        boxprops=dict(
+            facecolor=to_rgba(color, 0.20),
+            edgecolor=color,
+            linewidth=1.4
+        ),
+        medianprops=dict(
+            color=color,
+            linewidth=2
+        ),
+        whiskerprops=dict(
+            color=color,
+            linewidth=1.2
+        ),
+        capprops=dict(
+            color=color,
+            linewidth=1.2
+        )
+    )
+
+    # Individual fold points
+    jitter = rng.uniform(-0.13, 0.13, len(values))
+    ax.scatter(
+        position + jitter,
+        values,
+        s=18,
+        color=color,
+        alpha=0.55,
+        edgecolors="none",
+        zorder=3
+    )
+
+    # Mean marker
+    ax.scatter(
+        position,
+        values.mean(),
+        marker="D",
+        s=48,
+        color="black",
+        zorder=5
+    )
+
+# Chance line
+ax.axhline(
+    50,
+    linestyle="--",
+    color="gray",
+    linewidth=1
+)
+
+ax.set_xticks(range(1, 7))
+ax.set_xticklabels(main_labels)
+
+ax.set_ylabel("Validation accuracy (%)")
+ax.set_ylim(0, 105)
+
+ax.set_title("Accuracy across model configurations")
+
+ax.grid(axis="y", alpha=0.2)
+
+# Simple legend
+legend_elements = [
+    Line2D(
+    [0], [0],
+    marker="o",
+    linestyle="None",
+    markerfacecolor="#555555",
+    markeredgecolor="none",
+    markersize=6,
+    label="Individual CV fold"
+    ),
+    Line2D(
+        [0], [0],
+        marker="D",
+        linestyle="None",
+        color="black",
+        markersize=6,
+        label="Mean"
+    )
+]
+
+ax.legend(
+    handles=legend_elements,
+    frameon=False,
+    fontsize=8,
+    loc="lower left"
+)
+
+fig.tight_layout()
+
+save_figure(
+    fig,
+    "Figure7_ISBI_M0_to_M5_accuracy"
+)
+
+plt.close(fig)

@@ -331,7 +331,7 @@ The holdout evaluation script expects single-model checkpoints, while the five-f
 The extended experiment is implemented in:
 
 ```text
-sana_06_improved_ablation_hpc.py
+experiment_06_improved_ablation_hpc.py
 ```
 
 It evaluates:
@@ -467,7 +467,7 @@ These are subject-level examples rather than a separate test cohort.
 The neighbor-composition script is maintained as:
 
 ```text
-sana_08_neighbor_composition.py
+experiment_08_neighbor_composition.py
 ```
 
 Its expected outputs include:
@@ -504,13 +504,13 @@ practical-project/
 |-- models.py
 |-- utils.py
 |
-|-- sana_01_pretrained_only.py
-|-- sana_02_retrieval_mean.py
-|-- sana_03_ablation_summary.py
-|-- sana_04_rac_v2_repeated_cv.py
-|-- sana_05_full_ablation_repeated_cv.py
-|-- sana_06_improved_ablation_hpc.py
-|-- sana07_figures.py
+|-- experiment_01_pretrained_only.py
+|-- experiment_02_retrieval_mean.py
+|-- experiment_03_ablation_summary.py
+|-- experiment_04_rac_v2_repeated_cv.py
+|-- experiment_05_full_ablation_repeated_cv.py
+|-- experiment_06_improved_ablation_hpc.py
+|-- experiment07_figures.py
 |
 |-- README.md
 |-- requirements.txt
@@ -518,11 +518,15 @@ practical-project/
 |-- .gitignore
 ```
 
-The scripts `sana_01` through `sana_05` document earlier exploratory experiments. They may be archived separately after confirming that the finalized scripts do not depend on them.
+### Extended Experiments
 
-The neighbor-composition script `sana_08_neighbor_composition.py` is currently maintained locally and should be added to the repository as part of the ISBI update.
+The repository includes additional experiments evaluating the effects of encoder pretraining, retrieval aggregation, attention mechanisms, retrieval-set size, and partial encoder fine-tuning.
 
-The directory tree above describes the repository before the proposed cleanup and archival.
+The final ablation pipeline implements six model configurations (M0–M5), with repeated stratified cross-validation.
+
+A separate retrieval-composition analysis examines the diagnostic distribution of nearest neighbors in the external knowledge base.
+
+Earlier experimental implementations are retained for reproducibility and documentation of the development process.
 
 ---
 
@@ -607,35 +611,35 @@ Evaluates the original holdout models and reports classification metrics. Its ch
 
 ### Extended Experiments
 
-**`sana_01_pretrained_only.py`**
+**`experiment_01_pretrained_only.py`**
 
 Earlier pretrained-only experiment.
 
-**`sana_02_retrieval_mean.py`**
+**`experiment_02_retrieval_mean.py`**
 
 Earlier mean-retrieval experiment.
 
-**`sana_03_ablation_summary.py`**
+**`experiment_03_ablation_summary.py`**
 
 Earlier ablation-result summary.
 
-**`sana_04_rac_v2_repeated_cv.py`**
+**`experiment_04_rac_v2_repeated_cv.py`**
 
 Repeated-CV experiment focused on RAC v2.
 
-**`sana_05_full_ablation_repeated_cv.py`**
+**`experiment_05_full_ablation_repeated_cv.py`**
 
 Earlier multi-model ablation implementation.
 
-**`sana_06_improved_ablation_hpc.py`**
+**`experiment_06_improved_ablation_hpc.py`**
 
 Current extended experiment comparing M0–M5, including K=5, 10 and 15 for retrieval-based models.
 
-**`sana07_figures.py`**
+**`experiment07_figures.py`**
 
 Generates scientific figures and comparisons from the extended ablation results.
 
-**`sana_08_neighbor_composition.py`**
+**`experiment_08_neighbor_composition.py`**
 
 Locally maintained script for analyzing PD/HC diagnostic composition among retrieved external neighbors.
 
@@ -710,7 +714,7 @@ These experiments use the original training protocol and should be distinguished
 ### Step 5 — Run the Extended Ablation Study
 
 ```bash
-python sana_06_improved_ablation_hpc.py
+python experiment_06_improved_ablation_hpc.py
 ```
 
 The script expects the processed metadata, pretrained encoder and knowledge-base files to be present.
@@ -720,7 +724,7 @@ Its current path configuration is designed for a particular HPC directory struct
 Main output files:
 
 ```text
-sana_results/
+experiment_results/
     sana06_all_folds.csv
     sana06_summary.csv
     sana06_predictions.csv
@@ -729,7 +733,7 @@ sana_results/
 ### Step 6 — Generate Publication Figures
 
 ```bash
-python sana07_figures.py
+python experiment07_figures.py
 ```
 
 The script reads `sana06_all_folds.csv` and produces scientific plots in PDF, PNG and SVG formats.
@@ -757,7 +761,7 @@ Other figures examine:
 After adding the local script to the repository:
 
 ```bash
-python sana_08_neighbor_composition.py
+python experiment_08_neighbor_composition.py
 ```
 
 The script generates subject-level retrieval composition and a manuscript-oriented summary table.
@@ -781,7 +785,7 @@ gae_encoder.pth
 knowledge_base.index
 kb_embeddings.npy
 master_metadata.csv
-sana_results/
+experiment_results/
 ```
 
 Data and derived subject-level files should only be shared in accordance with the applicable dataset access conditions.

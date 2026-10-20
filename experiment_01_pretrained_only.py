@@ -1,5 +1,5 @@
 # ============================================================
-# sana_01_pretrained_only.py
+# experiment_01_pretrained_only.py
 #
 # ABLATION 1:
 # External GAE pretraining only

@@ -1,5 +1,5 @@
 # ============================================================
-# sana_02_retrieval_mean.py
+# experiment_02_retrieval_mean.py
 #
 # ABLATION 2:
 # Pretrained encoder + FAISS retrieval

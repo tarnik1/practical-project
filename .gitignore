@@ -10,12 +10,17 @@ __pycache__/
 venv/
 .venv/
 
+# Local processed datasets and results
+processed_data_1/
+processed_data_2/
+
 *.npy
 *.npz
 *.pth
 *.pt
 *.pkl
 *.joblib
+
 
 .DS_Store
 Thumbs.db
