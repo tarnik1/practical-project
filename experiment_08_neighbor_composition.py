@@ -5,7 +5,7 @@ per-subject counts and a compact 5-row manuscript table. Run from the
 repository directory where models.py and utils.py are importable.
 
 Usage:
-    python sana_08_neighbor_composition.py --processed-dir processed_data_1 --k 10 --seed 42
+    python experiment_08_neighbor_composition.py --processed-dir processed_data_1 --k 10 --seed 42
 """
 import argparse
 from pathlib import Path
