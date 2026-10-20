@@ -74,7 +74,7 @@ class GraphAutoencoder(torch.nn.Module):
             nn.ReLU(),
             nn.Dropout(0.3),
             nn.Linear(hidden_dim * 2, num_nodes * num_nodes),
-            nn.Tanh()
+            nn.Sigmoid()
         )
 
     def decode(self, graph_level_vector):
@@ -102,7 +102,7 @@ class AttentionMechanism(nn.Module):
     def __init__(self, embedding_dim):
         super(AttentionMechanism, self).__init__()
         # In this 'Pure Dot-Product' version, we don't need linear layers here
-        # because we are comparing the v_query and V_retrieved directly.
+        # because we are comparing the v_query and v_retrieved directly.
         pass
     
     # DISCUSSION: alternatively, we could use learnable nn.Linear layers to compute attention scores.

@@ -55,7 +55,7 @@ num_epochs = 100
 # an epoch is one complete pass of the training algorithm through the entire training dataset.
 # num_epochs = 50 means the model will see every graph in the knowledge base 50 times during this training.
 # in the first few epochs, the model usually just learns the basic shape of the brain.
-# in Nomen et al., a range of 50-200 epochs was used (i guess?).
+# in Noman et al., a range of 50-200 epochs was used (i guess?).
 # for consideration: if the loss is still dropping rapidly at epoch 50, increase the number. if the loss stops moving at epoch 30, then 50 was more than enough (you could decrease it).
 print("Starting GAE Training...")
 
@@ -69,7 +69,7 @@ for epoch in range(num_epochs):
         reconstructed_matrix = model(data.x, data.edge_index, data.edge_weight, data.batch)
         
         # Calculate reconstruction error against original matrix
-        loss = loss_fn(reconstructed_matrix, data.fc_matrix)
+        loss = loss_fn(reconstructed_matrix, data.fc_matrix.abs())
         loss.backward()
 
         # to prevent gradients from exploding past a maximum value of 1.0

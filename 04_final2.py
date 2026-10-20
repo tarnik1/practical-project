@@ -38,6 +38,7 @@ for param in model.encoder.parameters():
 index = faiss.read_index(index_path)
 kb_embeddings = np.load(kb_embeddings_path).astype('float32')
 K = 10
+loss_fn = torch.nn.BCELoss()
 
 # 5-Fold Setup
 n_splits = 5
@@ -64,15 +65,15 @@ for fold, (train_idx, val_idx) in enumerate(skf.split(df_target, df_target['labe
     attention_model = AttentionMechanismLinear(embedding_dim=128)
     rac_model = RAC_Model(model.encoder, attention_model, embedding_dim=128)
 
-    optimizer = torch.optim.Adam(rac_model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(rac_model.parameters(), lr=0.0001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3)
-    loss_fn = torch.nn.BCELoss()
 
     num_epochs = 200
     all_val_accuracies = []
 
     for epoch in range(num_epochs):
         rac_model.train()
+        rac_model.gae_encoder.eval()
         total_loss = 0
         
         for data in train_loader:

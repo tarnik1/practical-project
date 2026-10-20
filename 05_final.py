@@ -43,11 +43,11 @@ for fold, (train_idx, val_idx) in enumerate(skf.split(df_target, df_target['labe
     fresh_gae = GraphAutoencoder(num_nodes=100, input_dim=100, hidden_dim=64, embedding_dim=128)
     baseline_model = Baseline_GNN(gae_encoder=fresh_gae.encoder, embedding_dim=128)
 
-    optimizer = torch.optim.Adam(baseline_model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(baseline_model.parameters(), lr=0.0001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3)
     loss_fn = torch.nn.BCELoss()
 
-    num_epochs = 100
+    num_epochs = 100 # do i wanna keep it like this?
     all_val_accuracies = []
 
     for epoch in range(num_epochs):
@@ -61,6 +61,7 @@ for fold, (train_idx, val_idx) in enumerate(skf.split(df_target, df_target['labe
             predictions = baseline_model(data.x, data.edge_index, data.edge_weight, data.batch)
             loss = loss_fn(predictions.squeeze(), data.y.float().squeeze())
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(baseline_model.parameters(), max_norm=1.0)
             optimizer.step()
             
             total_train_loss += loss.item()

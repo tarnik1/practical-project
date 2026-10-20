@@ -63,11 +63,11 @@ all_embeddings = np.concatenate(all_embeddings, axis=0) # FAISS needs float32
 
 # 6. Create and populate the FAISS index
 #    - EMBEDDING_DIM = 128
-#    - index = faiss.IndexFlatL2(EMBEDDING_DIM) # (L2 distance = dot product for normalized vectors)
+#    - index = faiss.IndexFlatL2(EMBEDDING_DIM)
 #    - index.add(all_embeddings)
 
 EMBEDDING_DIM = 128
-index = faiss.IndexFlatL2(EMBEDDING_DIM) # (L2 distance = dot product for normalized vectors)
+index = faiss.IndexFlatL2(EMBEDDING_DIM) # exact search (no compression, or clustering or approximation), using L2 (Euclidean) distance metric.
 index.add(all_embeddings)
 # "IndexFlatL2" tells FAISS to store vectors as-is, without compressing or clustering them.
 # since the knowledge base isn't too large, this is a good method because it performs an exact search rather than an approximation.
